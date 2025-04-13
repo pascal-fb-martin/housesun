@@ -120,10 +120,13 @@ static void housesun_response
     }
 
     if (!data) {
-        houselog_trace (HOUSE_FAILURE, "HTTP",
-                        "NO DATA on %s", SunSetSunRiseUrl);
-        return;
+       houselog_trace (HOUSE_FAILURE, "HTTP",
+                       "NO DATA from %s", SunSetSunRiseUrl);
+       DEBUG ("No data from %s\n", SunSetSunRiseUrl);
+       return;
     }
+    DEBUG ("sunrise-sunset.org response: %s\n", data);
+    const char *requested = origin;
 
     const char *error = echttp_json_parse (data, tokens, &count);
     if (error) {
@@ -150,27 +153,33 @@ static void housesun_response
     const char *sunriseascii = tokens[index].value.string;
 
     time_t now = time(0);
-    struct tm datetime = *localtime (&now);
 
-    datetime.tm_hour = atoi (sunriseascii);
-    const char *sep = strchr (sunriseascii, ':');
-    datetime.tm_min = sep?atoi (sep+1):0;
-    time_t sunrise = mktime (&datetime);
-
-    datetime.tm_hour = atoi (sunsetascii);
-    sep = strchr (sunsetascii, ':');
-    datetime.tm_min = sep?atoi (sep+1):0;
-    time_t sunset = mktime (&datetime);
-
-    const char *date = origin;
-    if (strcmp (date, "today")) {
+    if (strcmp (requested, "today")) {
         // This is tomorrow's times. Only use the sunrise time.
-        SunRise = sunrise;
+        time_t tomorrow = now + (24*60*60);
+        struct tm datetime = *localtime (&tomorrow);
+        datetime.tm_hour = atoi (sunriseascii);
+        const char *sep = strchr (sunriseascii, ':');
+        datetime.tm_min = sep?atoi(sep+1):0;
+        SunRise = mktime (&datetime);
+        DEBUG ("Sunrise time for %s: %lld\n", requested, (long long) SunRise);
     } else {
         // This is today's times. Only use the sunset time.
-        SunSet = sunset;
+        struct tm datetime = *localtime (&now);
+        datetime.tm_hour = atoi (sunsetascii);
+        const char *sep = strchr (sunsetascii, ':');
+        datetime.tm_min = sep?atoi (sep+1):0;
+        SunSet = mktime (&datetime);
+        DEBUG ("Sunset time for %s: %lld\n", requested, (long long) SunSet);
     }
-    if ((SunSet > now) && (SunRise > SunSet)) SunTimestamp = now;
+    DEBUG ("Current time: %lld\n", (long long)now);
+
+    if ((SunRise > now) &&
+        (SunRise > SunSet) && (SunSet > SunRise - (24*60*60))) {
+        SunTimestamp = now;
+        DEBUG ("Almanac data is now available: sunrise = %lld, sunset = %lld\n",
+               (long long)SunRise, (long long)SunSet);
+    }
 }
 
 static void housesun_query_almanach (const char *date) {
