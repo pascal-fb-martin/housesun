@@ -119,6 +119,12 @@ static void housesun_response
         return;
     }
 
+    if (!data) {
+        houselog_trace (HOUSE_FAILURE, "HTTP",
+                        "NO DATA on %s", SunSetSunRiseUrl);
+        return;
+    }
+
     const char *error = echttp_json_parse (data, tokens, &count);
     if (error) {
         houselog_trace (HOUSE_FAILURE, "JSON", "SYNTAX ERROR %s", error);
