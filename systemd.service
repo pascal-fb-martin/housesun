@@ -1,0 +1,20 @@
+[Unit]
+Description=The Home Almanac Service (Sunset-Sunrise.org)
+After=network-online.target houseportal.service
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+User=house
+Restart=on-failure
+RestartSec=50s
+Environment="HTTPOPTS=" "HOUSEOPTS=" "OPTS="
+EnvironmentFile=-/etc/default/housegeneric
+EnvironmentFile=-/etc/sysconfig/housegeneric
+EnvironmentFile=-/etc/default/housesun
+EnvironmentFile=-/etc/sysconfig/housesun
+ExecStart=/usr/local/bin/housesun $HTTPOPTS $HOUSEOPTS $OPTS
+
+[Install]
+WantedBy=multi-user.target
+

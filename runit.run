@@ -1,0 +1,9 @@
+#!/bin/sh
+HTTPOPTS=
+HOUSEOPTS=
+OPTS=
+if [ -e /etc/default/housegeneric ] ; then . /etc/default/housegeneric ; fi
+if [ -e /etc/default/housesun ] ; then . /etc/default/housesun ; fi
+sv start houseportal || exit 1
+exec /usr/local/bin/housesun $HTTPOPTS $HOUSEOPTS $OPTS
+
