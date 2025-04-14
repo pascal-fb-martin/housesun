@@ -86,6 +86,7 @@ static const char *housesun_nextnight (const char *method, const char *uri,
     // Extra information that can be used as status.
     //
     echttp_json_add_integer (context, top, "updated", SunTimestamp);
+    top = echttp_json_add_object (context, root, "location");
     if (housesun_location_ready()) {
         echttp_json_add_real (context, top, "lat", housesun_location_lat());
         echttp_json_add_real (context, top, "long", housesun_location_long());
