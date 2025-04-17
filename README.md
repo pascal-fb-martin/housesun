@@ -4,7 +4,7 @@
 
 This service implements the same web API as the [housealmanac](https://github.com/pascal-fb-martin/housealmanac) service, but feed its data from the free [sunrise-sunset.org](https://sunrise-sunset.org) web site.
 
-This service uses the [houseclock](https://github.com/pascal-fb-martin/houseclock) service to obtain the GPS location. The houseclock service may run on another computer on the same local network, but it must be synchronized using a GPS receiver (houseclock is used here as a GPS location service).
+This service uses the [houseclock](https://github.com/pascal-fb-martin/houseclock) service to obtain the GPS location. The houseclock service may run on another computer on the same local network, but it must be synchronized using a GPS receiver (houseclock is used here as a GPS location service). This service also use the default timezone of the local machine (i.e. the timezone named in /etc/timezone).
 
 ## Installation
 
