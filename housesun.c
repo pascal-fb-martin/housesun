@@ -167,7 +167,7 @@ static void housesun_response
     } else {
         // This is today's times. Only use the sunset time.
         struct tm datetime = *localtime (&now);
-        datetime.tm_hour = atoi (sunsetascii);
+        datetime.tm_hour = atoi (sunsetascii) + 12; // Always PM.
         const char *sep = strchr (sunsetascii, ':');
         datetime.tm_min = sep?atoi (sep+1):0;
         SunSet = mktime (&datetime);

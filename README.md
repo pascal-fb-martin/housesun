@@ -2,7 +2,9 @@
 
 ## Overview
 
-This service implements the same web API as the [housealmanac](https://github.com/pascal-fb-martin/housealmanac) service, but feed its data from the free sunset-sunrise.org web site.
+This service implements the same web API as the [housealmanac](https://github.com/pascal-fb-martin/housealmanac) service, but feed its data from the free [sunrise-sunset.org](https://sunrise-sunset.org) web site.
+
+This service uses the [houseclock](https://github.com/pascal-fb-martin/houseclock) service to obtain the GPS location. The houseclock service may run on another computer on the same local network, but it must be synchronized using a GPS receiver (houseclock is used here as a GPS location service).
 
 ## Installation
 
@@ -10,6 +12,7 @@ This service depends on the House series environment:
 * Install git, icoutils, openssl (libssl-dev).
 * Install [echttp](https://github.com/pascal-fb-martin/echttp)
 * Install [houseportal](https://github.com/pascal-fb-martin/houseportal)
+* Install [houseclock](https://github.com/pascal-fb-martin/houseclock).
 * Clone this repository.
 * make rebuild
 * sudo make install
