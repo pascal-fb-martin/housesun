@@ -7,11 +7,10 @@ function shortTime (time) {
     return time.toLocaleString().split(' GMT')[0];
 }
 
-function clockUpdate (response) {
+function sunUpdate (response) {
 
-    var title = response.host+' - NTP';
+    var title = response.host+' - SunriseSunset.org';
     document.getElementsByTagName ('title')[0].innerHTML = title;
-    document.getElementById('portal').href = 'http://'+response.proxy+'/index.html';
 
     var lat = response.location.lat;
     var long = response.location.long;
@@ -46,21 +45,21 @@ function clockUpdate (response) {
     document.getElementById('localtime').innerHTML = shortTime(sysdate);
 }
 
-function clockInfo () {
+function sunInfo () {
 
     var command = new XMLHttpRequest();
     command.open("GET", "/sun/nextnight");
     command.onreadystatechange = function () {
         if (command.readyState === 4 && command.status === 200) {
-            clockUpdate(JSON.parse(command.responseText));
+            sunUpdate(JSON.parse(command.responseText));
         }
     }
     command.send(null);
 }
 
 window.onload = function() {
-   clockInfo();
-   setInterval (clockInfo, 1000);
+   sunInfo();
+   setInterval (sunInfo, 1000);
 }
 </script>
 <title></title>
@@ -70,9 +69,8 @@ window.onload = function() {
    <tr><td>
    <table class="housetop">
    <tr>
-   <td><a id="portal" href="/index.html">Portal</a></td>
-   <td><span>Clock</span></td>
-   <td><a href="/ntp/events.html">Events</a></td>
+   <td><span>Status</span></td>
+   <td><a href="/sun/events.html">Events</a></td>
    </tr>
    </table> 
    </td></tr>
