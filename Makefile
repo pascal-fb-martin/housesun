@@ -43,7 +43,14 @@ housesun: $(OBJS)
 
 # Application files installation --------------------------------
 
-install-app:
+install-ui:
+	mkdir -p $(SHARE)/public/sun
+	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/sun
+	cp public/* $(SHARE)/public/sun
+	chown root:root $(SHARE)/public/sun/*
+	chmod 644 $(SHARE)/public/sun/*
+
+install-app: install-ui
 	mkdir -p $(HROOT)/bin
 	mkdir -p /var/lib/house
 	mkdir -p /etc/house
