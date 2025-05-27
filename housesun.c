@@ -47,51 +47,126 @@
 
 #define DEBUG if (echttp_isdebug()) printf
 
-static time_t SunTimestamp = 0;
-static time_t SunSet = 0;
-static time_t SunRise = 0;
+struct SunDataDay {
+    time_t midnight;
+    time_t sunrise;
+    time_t sunset;
+};
+
+struct SunDataBase {
+    time_t timestamp; // Invalid data if too old.
+    struct SunDataDay yesterday;
+    struct SunDataDay today;
+    struct SunDataDay tomorrow;
+};
+
+struct SunDataBase SunActive = {0};
+struct SunDataBase SunPending = {0};
+
+time_t SunRefresh = 0;
 
 static const char *SunSetSunRiseUrl = "https://api.sunrise-sunset.org/json";
 
 static const char SunSetPath[] = ".results.sunset";
 static const char SunRisePath[] = ".results.sunrise";
 
-static const char *housesun_nextnight (const char *method, const char *uri,
-                                       const char *data, int length) {
-    static char buffer[65537];
-    static char pool[65537];
+static int housesun_header (ParserContext context) {
+
     static char host[256];
 
-    ParserToken token[1024];
-
-    if (SunRise < time(0)) {
-        // This data is too old. Let's hope that the HouseAlmanac service
-        // is running as a fallback.
-        echttp_error (500, "EXPIRED ALMANAC DATA");
-        return "";
-    }
     if (host[0] == 0) gethostname (host, sizeof(host));
-
-    ParserContext context = echttp_json_start (token, 1024, pool, sizeof(pool));
 
     int root = echttp_json_add_object (context, 0, 0);
     echttp_json_add_string (context, root, "host", host);
     echttp_json_add_string (context, root, "proxy", houseportal_server());
     echttp_json_add_integer (context, root, "timestamp", (long)time(0));
-    int top = echttp_json_add_object (context, root, "almanac");
-    echttp_json_add_integer (context, top, "priority", 10);
-    echttp_json_add_integer (context, top, "sunset", SunSet);
-    echttp_json_add_integer (context, top, "sunrise", SunRise);
 
     // Extra information that can be used as status.
     //
-    echttp_json_add_integer (context, top, "updated", SunTimestamp);
-    top = echttp_json_add_object (context, root, "location");
+    int loc = echttp_json_add_object (context, root, "location");
     if (housesun_location_ready()) {
-        echttp_json_add_real (context, top, "lat", housesun_location_lat());
-        echttp_json_add_real (context, top, "long", housesun_location_long());
+        echttp_json_add_real (context, loc, "lat", housesun_location_lat());
+        echttp_json_add_real (context, loc, "long", housesun_location_long());
     }
-    echttp_json_add_string (context, top, "timezone", housesun_location_timezone());
+    echttp_json_add_string (context, loc, "timezone", housesun_location_timezone());
+
+    int top = echttp_json_add_object (context, root, "almanac");
+    echttp_json_add_integer (context, top, "priority", 10);
+    echttp_json_add_integer (context, top, "updated", SunActive.timestamp);
+
+    return top;
+}
+
+static const char *housesun_tonight (const char *method, const char *uri,
+                                     const char *data, int length) {
+    static char buffer[65537];
+    static char pool[65537];
+
+    ParserToken token[1024];
+
+    time_t now = time(0);
+    if (SunActive.timestamp < now - (25*60*60)) {
+        // This data is too old. Let's hope that the HouseAlmanac service
+        // is running as a fallback.
+        echttp_error (500, "EXPIRED ALMANAC DATA");
+        return "";
+    }
+    ParserContext context = echttp_json_start (token, 1024, pool, sizeof(pool));
+
+    int top = housesun_header (context);
+
+    time_t sunset;
+    time_t sunrise;
+
+    if (SunActive.today.sunrise < now) {
+       // That night is over, look for the next night.
+       sunset = SunActive.today.sunset;
+       sunrise = SunActive.tomorrow.sunrise;
+    } else {
+       sunset = SunActive.yesterday.sunset;
+       sunrise = SunActive.today.sunrise;
+    }
+    echttp_json_add_integer (context, top, "sunset", sunset);
+    echttp_json_add_integer (context, top, "sunrise", sunrise);
+
+    const char *error = echttp_json_export (context, buffer, sizeof(buffer));
+    if (error) {
+        echttp_error (500, error);
+        return "";
+    }
+    echttp_content_type_json ();
+    return buffer;
+}
+
+static const char *housesun_today (const char *method, const char *uri,
+                                   const char *data, int length) {
+    static char buffer[65537];
+    static char pool[65537];
+
+    ParserToken token[1024];
+
+    time_t now = time(0);
+    if (SunActive.timestamp < now - (25*60*60)) {
+        // This data is too old. Let's hope that the HouseAlmanac service
+        // is running as a fallback.
+        echttp_error (500, "EXPIRED ALMANAC DATA");
+        return "";
+    }
+
+    ParserContext context = echttp_json_start (token, 1024, pool, sizeof(pool));
+
+    int top = housesun_header (context);
+
+    time_t sunrise = SunActive.today.sunrise;
+    time_t sunset = SunActive.today.sunset;
+
+    if (now >= SunActive.tomorrow.midnight) {
+        // This may happen between midnight and the daily refresh.
+        sunrise = SunActive.tomorrow.sunrise;
+        sunset = SunActive.tomorrow.sunset;
+    }
+    echttp_json_add_integer (context, top, "sunrise", sunrise);
+    echttp_json_add_integer (context, top, "sunset", sunset);
 
     const char *error = echttp_json_export (context, buffer, sizeof(buffer));
     if (error) {
@@ -155,42 +230,74 @@ static void housesun_response
 
     time_t now = time(0);
 
-    if (strcmp (requested, "today")) {
-        // This is tomorrow's times. Only use the sunrise time.
-        time_t tomorrow = now + (24*60*60);
-        struct tm datetime = *localtime (&tomorrow);
-        datetime.tm_hour = atoi (sunriseascii);
-        const char *sep = strchr (sunriseascii, ':');
-        datetime.tm_min = sep?atoi(sep+1):0;
-        SunRise = mktime (&datetime);
-        DEBUG ("Sunrise time for %s: %lld\n", requested, (long long) SunRise);
-    } else {
-        // This is today's times. Only use the sunset time.
-        struct tm datetime = *localtime (&now);
-        datetime.tm_hour = atoi (sunsetascii) + 12; // Always PM.
-        const char *sep = strchr (sunsetascii, ':');
-        datetime.tm_min = sep?atoi (sep+1):0;
-        SunSet = mktime (&datetime);
-        DEBUG ("Sunset time for %s: %lld\n", requested, (long long) SunSet);
+    time_t reference = now;
+    struct SunDataDay *thisday = &(SunPending.today);
+
+    if (!strcmp (requested, "yesterday")) {
+        reference = now - (24*60*60);
+        thisday = &(SunPending.yesterday);
+    } else if (!strcmp (requested, "tomorrow")) {
+        reference = now + (24*60*60);
+        thisday = &(SunPending.tomorrow);
+    } else if (strcmp (requested, "today")) {
+        houselog_trace (HOUSE_FAILURE, "JSON", "INVALID REQUEST");
+        return;
     }
+    struct tm datetime = *localtime (&reference);
+    datetime.tm_sec = 0;
+
+    datetime.tm_hour = atoi (sunriseascii);
+    const char *sep = strchr (sunriseascii, ':');
+    datetime.tm_min = sep?atoi(sep+1):0;
+    thisday->sunrise = mktime (&datetime);
+
+    datetime.tm_hour = atoi (sunsetascii) + 12; // Always PM.
+    sep = strchr (sunsetascii, ':');
+    datetime.tm_min = sep?atoi (sep+1):0;
+    thisday->sunset = mktime (&datetime);
+
+    datetime.tm_hour = 0;
+    datetime.tm_min = 0;
+    thisday->midnight = mktime (&datetime);
+
+    DEBUG ("Sunrise time for %s: %lld\n", requested, (long long) thisday->sunrise);
+    DEBUG ("Sunset time for %s: %lld\n", requested, (long long) thisday->sunset);
     DEBUG ("Current time: %lld\n", (long long)now);
 
-    if ((SunRise > now) &&
-        (SunRise > SunSet) && (SunSet > SunRise - (24*60*60))) {
-        SunTimestamp = now;
-        DEBUG ("Almanac data is now available: sunrise = %lld, sunset = %lld\n",
-               (long long)SunRise, (long long)SunSet);
+    // Did we receive everything? If so, activate this new data.
+    //
+    if (SunPending.yesterday.midnight &&
+        SunPending.today.midnight &&
+        SunPending.tomorrow.midnight) {
+
+        SunActive = SunPending;
+        SunActive.timestamp = now;
+
+        SunPending.timestamp =
+            SunPending.yesterday.midnight =
+            SunPending.today.midnight =
+            SunPending.tomorrow.midnight = 0;
+
+        // Schedule the next refresh.
+        //
+        reference = now + (24*60*60);
+        datetime = *localtime (&reference);
+        datetime.tm_hour = 1;
+        datetime.tm_min = 0;
+        datetime.tm_sec = 0;
+        SunRefresh = mktime (&datetime);
+        DEBUG ("Almanac data is now available\n");
     }
 }
 
-static void housesun_query_almanach (const char *date) {
+static void housesun_query_almanach (const char *day) {
 
     char url[1024];
 
     snprintf (url, sizeof(url), "%s?lat=%1.7f&lng=%1.7f&date=%s&tzid=%s",
               SunSetSunRiseUrl,
               housesun_location_lat(), housesun_location_long(),
-              date, housesun_location_timezone());
+              day, housesun_location_timezone());
     DEBUG ("Launching query: %s\n", url);
 
     const char *error = echttp_client ("GET", url);
@@ -198,7 +305,7 @@ static void housesun_query_almanach (const char *date) {
         houselog_trace (HOUSE_FAILURE, "HTTP", "ERROR %s", error);
         return;
     }
-    echttp_submit (0, 0, housesun_response, (void *)date);
+    echttp_submit (0, 0, housesun_response, (void *)day);
 }
 
 static void housesun_background (int fd, int mode) {
@@ -228,14 +335,15 @@ static void housesun_background (int fd, int mode) {
     houselog_background (now);
     housesun_location_background (now);
 
-    if (SunRise > now) return; // Existing data has not expired yet.
+    if (now < SunRefresh) return; // Existing data has not expired yet.
 
     if (now < LastQuery + 10) return; // Do not issue requests at high rate.
     LastQuery = now;
 
     if (!housesun_location_ready())
-        return; // We need the GPS coordinates to qery the almanac data.
+        return; // We need the GPS coordinates to query the almanac data.
 
+    housesun_query_almanach ("yesterday");
     housesun_query_almanach ("today");
     housesun_query_almanach ("tomorrow");
 }
@@ -260,8 +368,9 @@ int main (int argc, const char **argv) {
     housediscover_initialize (argc, argv);
     houselog_initialize ("sun", argc, argv);
 
-    echttp_route_uri ("/sun/status", housesun_nextnight);
-    echttp_route_uri ("/sun/nextnight", housesun_nextnight);
+    echttp_route_uri ("/sun/status", housesun_today);
+    echttp_route_uri ("/sun/tonight", housesun_tonight);
+    echttp_route_uri ("/sun/today", housesun_today);
     echttp_static_route ("/", "/usr/local/share/house/public");
     echttp_background (&housesun_background);
     echttp_loop();

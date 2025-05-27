@@ -7,59 +7,81 @@ function shortTime (time) {
     return time.toLocaleString().split(' GMT')[0];
 }
 
-function sunUpdate (response) {
+function AlmanacUpdate (what, response) {
 
-    var title = response.host+' - SunriseSunset.org';
+    var title = response.host+' - Sunrise-Sunset.org';
     document.getElementsByTagName ('title')[0].innerHTML = title;
 
-    var lat = response.location.lat;
-    var long = response.location.long;
-    if (lat && long) {
-        document.getElementById('latitude').innerHTML = lat;
-        document.getElementById('longitude').innerHTML = long;
+    if (response.location) {
+        var lat = response.location.lat;
+        var long = response.location.long;
+        if (lat && long) {
+            document.getElementById('latitude').innerHTML = lat;
+            document.getElementById('longitude').innerHTML = long;
+        } else {
+            document.getElementById('latitude').innerHTML = '';
+            document.getElementById('longitude').innerHTML = '';
+        }
+        var timezone = response.location.timezone;
+        if (timezone) {
+            document.getElementById('timezone').innerHTML = timezone;
+        } else {
+            document.getElementById('timezone').innerHTML = '';
+        }
     } else {
         document.getElementById('latitude').innerHTML = '';
         document.getElementById('longitude').innerHTML = '';
-    }
-    var timezone = response.location.timezone;
-    if (timezone) {
-        document.getElementById('timezone').innerHTML = timezone;
-    } else {
         document.getElementById('timezone').innerHTML = '';
     }
+
+    var sysdate = new Date (response.timestamp * 1000);
+    document.getElementById('localtime').innerHTML = shortTime(sysdate);
 
     if (response.almanac) {
         if (response.almanac.priority) {
             document.getElementById('priority').innerHTML = response.almanac.priority;
         }
+        if (response.almanac.origin) {
+            document.getElementById('origin').innerHTML = '<a href="'+response.almanac.origin+'">'+response.almanac.origin+'</a>';
+        }
         if (response.almanac.sunset) {
             var sunset = new Date (response.almanac.sunset * 1000);
-            document.getElementById('sunset').innerHTML = shortTime(sunset);
+            document.getElementById(what+'sunset').innerHTML = shortTime(sunset);
+        } else {
+            document.getElementById(what+'sunset').innerHTML = '';
         }
         if (response.almanac.sunrise) {
             var sunrise = new Date (response.almanac.sunrise * 1000);
-            document.getElementById('sunrise').innerHTML = shortTime(sunrise);
+            document.getElementById(what+'sunrise').innerHTML = shortTime(sunrise);
+        } else {
+            document.getElementById(what+'sunrise').innerHTML = '';
         }
+    } else {
+        document.getElementById(what+'sunset').innerHTML = '';
+        document.getElementById(what+'sunrise').innerHTML = '';
     }
-    var sysdate = new Date (response.timestamp * 1000);
-    document.getElementById('localtime').innerHTML = shortTime(sysdate);
 }
 
-function sunInfo () {
+function AlmanacInfo (what) {
 
     var command = new XMLHttpRequest();
-    command.open("GET", "/sun/nextnight");
+    command.open("GET", "/sun/"+what);
     command.onreadystatechange = function () {
         if (command.readyState === 4 && command.status === 200) {
-            sunUpdate(JSON.parse(command.responseText));
+            AlmanacUpdate(what, JSON.parse(command.responseText));
         }
     }
     command.send(null);
 }
 
+function AlmanacRefresh () {
+    AlmanacInfo ("today");
+    AlmanacInfo ("tonight");
+}
+
 window.onload = function() {
-   sunInfo();
-   setInterval (sunInfo, 1000);
+   AlmanacRefresh();
+   setInterval (AlmanacRefresh, 1000);
 }
 </script>
 <title></title>
@@ -70,7 +92,7 @@ window.onload = function() {
    <table class="housetop">
    <tr>
    <td><span>Status</span></td>
-   <td><a href="/sun/events.html">Events</a></td>
+   <td><a href="/almanac/events.html">Events</a></td>
    </tr>
    </table> 
    </td></tr>
@@ -84,23 +106,36 @@ window.onload = function() {
    <td><span class="housedata" id="latitude"></span></td></tr>
    <tr><td>Longitude:</td>
    <td><span class="housedata" id="longitude"></span></td></tr>
+   <tr><td>Local Time:</td>
+   <td><span class="housedata" id="localtime"></span></td></tr>
    <tr><td>Time Zone:</td>
    <td><span class="housedata" id="timezone"></span></td></tr>
+   <tr><td>Origin:</td>
+   <td><span class="housedata" id="origin"></span></td></tr>
+   <tr><td>Priority:</td>
+   <td><span class="housedata" id="priority"></span></td></tr>
    </table>
    </div>
    </td></tr>
    <tr><td>
    <div class="housepane">
    <table class="housestatus">
-   <tr><td colspan="2"><span class="housetitle">Almanac</span></td></tr>
-   <tr><td>Priority:</td>
-   <td><span class="housedata" id="priority"></span></td></tr>
+   <tr><td colspan="2"><span class="housetitle">Tonight Almanac</span></td></tr>
    <tr><td>Sunset:</td>
-   <td><span class="housedata" id="sunset"></span></td></tr>
+   <td><span class="housedata" id="tonightsunset"></span></td></tr>
    <tr><td>Sunrise:</td>
-   <td><span class="housedata" id="sunrise"></span></td></tr>
-   <tr><td>localtime:</td>
-   <td><span class="housedata" id="localtime"></span></td></tr>
+   <td><span class="housedata" id="tonightsunrise"></span></td></tr>
+   </table>
+   </div>
+   </td></tr>
+   <tr><td>
+   <div class="housepane">
+   <table class="housestatus">
+   <tr><td colspan="2"><span class="housetitle">Today Almanac</span></td></tr>
+   <tr><td>Sunrise:</td>
+   <td><span class="housedata" id="todaysunrise"></span></td></tr>
+   <tr><td>Sunset:</td>
+   <td><span class="housedata" id="todaysunset"></span></td></tr>
    </table>
    </div>
    </td></tr>
