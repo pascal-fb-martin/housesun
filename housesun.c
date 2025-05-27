@@ -66,6 +66,7 @@ struct SunDataBase SunPending = {0};
 time_t SunRefresh = 0;
 
 static const char *SunSetSunRiseUrl = "https://api.sunrise-sunset.org/json";
+static const char *SunSetSunRiseWeb = "https://sunrise-sunset.org";
 
 static const char SunSetPath[] = ".results.sunset";
 static const char SunRisePath[] = ".results.sunrise";
@@ -93,6 +94,7 @@ static int housesun_header (ParserContext context) {
     int top = echttp_json_add_object (context, root, "almanac");
     echttp_json_add_integer (context, top, "priority", 10);
     echttp_json_add_integer (context, top, "updated", SunActive.timestamp);
+    echttp_json_add_string (context, top, "origin", SunSetSunRiseWeb);
 
     return top;
 }
