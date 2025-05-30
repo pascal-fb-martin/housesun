@@ -61,7 +61,7 @@ install-app: install-ui
 	touch /etc/default/housesun
 
 uninstall-app:
-	rm -rf $(SHARE)/public/housesun
+	rm -rf $(SHARE)/public/sun
 	rm -f $(HROOT)/bin/housesun
 
 purge-app:
