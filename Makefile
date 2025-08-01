@@ -16,10 +16,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA  02110-1301, USA.
+#
+# WARNING
+# 
+# This Makefile depends on echttp and houseportal (dev) being installed.
+
+prefix=/usr/local
+SHARE=$(prefix)/share/house
+
+INSTALL=/usr/bin/install
 
 HAPP=housesun
-HROOT=/usr/local
-SHARE=$(HROOT)/share/house
 
 # Application build. --------------------------------------------
 
@@ -39,35 +46,26 @@ rebuild: clean all
 	gcc -c -Wall -g -Os -o $@ $<
 
 housesun: $(OBJS)
-	gcc -Os -o housesun $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lrt
+	gcc -Os -o housesun $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lmagic -lrt
 
 # Application files installation --------------------------------
 
-install-ui:
-	mkdir -p $(SHARE)/public/sun
-	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/sun
-	cp public/* $(SHARE)/public/sun
-	chown root:root $(SHARE)/public/sun/*
-	chmod 644 $(SHARE)/public/sun/*
+install-ui: install-preamble
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(SHARE)/public/sun
+	$(INSTALL) -m 0644 public/* $(DESTDIR)$(SHARE)/public/sun
 
 install-app: install-ui
-	mkdir -p $(HROOT)/bin
-	mkdir -p /var/lib/house
-	mkdir -p /etc/house
-	rm -f $(HROOT)/bin/housesun
-	cp housesun $(HROOT)/bin
-	chown root:root $(HROOT)/bin/housesun
-	chmod 755 $(HROOT)/bin/housesun
-	touch /etc/default/housesun
+	$(INSTALL) -m 0755 -s housesun $(DESTDIR)$(prefix)/bin
+	touch $(DESTDIR)/etc/default/housesun
 
 uninstall-app:
-	rm -rf $(SHARE)/public/sun
-	rm -f $(HROOT)/bin/housesun
+	rm -rf $(DESTDIR)$(SHARE)/public/sun
+	rm -f $(DESTDIR)$(prefix)/bin/housesun
 
 purge-app:
 
 purge-config:
-	rm -rf /etc/default/housesun
+	rm -f $(DESTDIR)/etc/default/housesun
 
 # System installation. ------------------------------------------
 
@@ -79,9 +77,9 @@ docker: all
 	rm -rf build
 	mkdir -p build
 	cp Dockerfile build
-	mkdir -p build$(HROOT)/bin
-	cp housesun build$(HROOT)/bin
-	chmod 755 build$(HROOT)/bin/housesun
+	mkdir -p build$(prefix)/bin
+	cp housesun build$(prefix)/bin
+	chmod 755 build$(prefix)/bin/housesun
 	cd build ; docker build -t housesun .
 	rm -rf build
 
