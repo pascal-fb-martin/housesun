@@ -1,0 +1,21 @@
+Source: housesun
+Version: 1.0
+Section: Web servers
+Maintainer: Pascal Martin <pascal.fb.martin@gmail.com>
+Priority: optional
+Homepage: https://github.com/pascal-fb-martin/housesun
+Standard-Version: 4.7.0
+Package: housesun
+Architecture: {{arch}}
+Depends: 
+Description: A House service to provide accurate sunrise and sunset times
+ HouseSun is part of the House suite of web services.
+ .
+ HouseSun retrieve every day's sunset and sunrise times from the
+ https://sunrise-sunset.org web site. The location of the server
+ is retrieved by querying the GPS coordinates from all detected
+ HouseClock services.
+ .
+ The sunrise and sunset times are typically used when scheduling light
+ controls.
+

@@ -18,7 +18,23 @@ This service depends on the House series environment:
 * make rebuild
 * sudo make install
 
-# Configuration
+## Configuration
 
 This service does not need to be configured.
+
+## Debian Packaging
+
+The provided Makefile supports building private Debian packages. These are _not_ official packages:
+
+- They do not follow all Debian policies.
+
+- They are not built using Debian standard conventions and tools.
+
+- The packaging is not separate from the upstream sources, and there is
+  no source package.
+
+To build a Debian package, use the `debian-package` target:
+```
+make debian-package
+```
 
