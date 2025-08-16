@@ -1,4 +1,6 @@
-# HouseSun - An Almanac Service fed from sunset-sunrise.org
+# HouseSun
+
+An Almanac Service fed from sunset-sunrise.org
 
 ## Overview
 
@@ -34,6 +36,7 @@ The provided Makefile supports building private Debian packages. These are _not_
   no source package.
 
 To build a Debian package, use the `debian-package` target:
+
 ```
 make debian-package
 ```
