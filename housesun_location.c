@@ -114,7 +114,7 @@ static void housesun_location_update (const char *provider,
        houselog_trace (HOUSE_FAILURE, provider, "no GPS fix indicator");
        return;
    }
-   if (!tokens[index].value.bool) return;
+   if (!tokens[index].value.boolean) return;
 
    index = echttp_json_search (tokens, ".clock.gps.latitude");
    if (index <= 0) {
