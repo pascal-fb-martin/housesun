@@ -91,10 +91,18 @@ void housesun_sunsetsunrise_register (SunResponseListener *listener) {
 
 static int housesun_response_time (const char *ascii) {
 
+    int second = 0;
+    int minute = 0;
     int hour = atoi (ascii);
+    const char *postmeridiem = strstr (ascii, "PM");
+    if (postmeridiem) hour += 12;
     const char *sep = strchr (ascii, ':');
-    int minute = sep?atoi(sep+1):0;
-    return (hour * 3600) + (minute * 60);
+    if (sep++) {
+        minute = atoi(sep);
+        sep = strchr (sep, ':');
+        second = sep?atoi(sep+1):0;
+    }
+    return (hour * 3600) + (minute * 60) + second;
 }
 
 static void housesun_response
@@ -122,6 +130,7 @@ static void housesun_response
        return;
     }
     DEBUG ("sunrise-sunset.org response: %s\n", data);
+
     const char *requested = origin;
 
     const char *error = echttp_json_parse (data, tokens, &count);
@@ -149,7 +158,7 @@ static void housesun_response
     const char *sunriseascii = tokens[index].value.string;
 
     SunListener (requested, housesun_response_time (sunriseascii),
-                            (12 * 3600) + housesun_response_time (sunsetascii));
+                            housesun_response_time (sunsetascii));
 }
 
 const char *housesun_sunsetsunrise_query (const char *day) {
