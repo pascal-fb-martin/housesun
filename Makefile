@@ -31,7 +31,7 @@ HCAT=providers
 
 # Application build. --------------------------------------------
 
-OBJS=housesun.o housesun_location.o
+OBJS=housesun.o housesun_cache.o housesun_sunsetsunrise.o housesun_location.o
 LIBOJS=
 
 all: housesun

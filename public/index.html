@@ -3,85 +3,132 @@
 <head>
 <link rel=stylesheet type="text/css" href="/house.css" title="House">
 <script>
-function shortTime (time) {
-    return time.toLocaleString().split(' GMT')[0];
+
+const AlmanacDays = ["yesterday", "today", "tomorrow"];
+const AlmanacTimes = ["sunrise", "sunset"];
+
+const AlmanacDate = new Intl.DateTimeFormat (undefined, {dateStyle: "full"});
+const AlmanacTime = new Intl.DateTimeFormat (undefined, {timeStyle: "short"});
+const AlmanacAll = new Intl.DateTimeFormat (undefined, {dateStyle: "short",
+                                                        timeStyle: "medium"});
+const AlmanacMedium = Intl.DateTimeFormat (undefined, {dateStyle: "short",
+                                                       timeStyle: "medium"});
+
+function showDateTime (time) {
+    if (! time) return '';
+    return AlmanacAll.format (new Date (time * 1000));
 }
 
-function AlmanacUpdate (what, response) {
+function showDate (time) {
+    if (! time) return '';
+    return AlmanacDate.format (new Date (time * 1000));
+}
+
+function showTime (time) {
+    if (! time) return '';
+    return AlmanacTime.format (new Date (time * 1000));
+}
+
+function AlmanacUpdate (response) {
 
     var title = response.host+' - Sunrise-Sunset.org';
     document.getElementsByTagName ('title')[0].innerHTML = title;
 
     if (response.location) {
-        var lat = response.location.lat;
-        var long = response.location.long;
-        if (lat && long) {
-            document.getElementById('latitude').innerHTML = lat;
-            document.getElementById('longitude').innerHTML = long;
-        } else {
-            document.getElementById('latitude').innerHTML = '';
-            document.getElementById('longitude').innerHTML = '';
-        }
-        var timezone = response.location.timezone;
-        if (timezone) {
-            document.getElementById('timezone').innerHTML = timezone;
-        } else {
-            document.getElementById('timezone').innerHTML = '';
-        }
+        const lat = response.location.lat;
+        const long = response.location.long;
+        const timezone = response.location.timezone;
+        document.getElementById('latitude').innerHTML = lat?lat:'';
+        document.getElementById('longitude').innerHTML = long?long:'';
+        document.getElementById('timezone').innerHTML = timezone?timezone:'';
     } else {
         document.getElementById('latitude').innerHTML = '';
         document.getElementById('longitude').innerHTML = '';
         document.getElementById('timezone').innerHTML = '';
     }
 
-    var sysdate = new Date (response.timestamp * 1000);
-    document.getElementById('localtime').innerHTML = shortTime(sysdate);
+    document.getElementById('localtime').innerHTML =
+        showDateTime(response.timestamp);
 
     if (response.almanac) {
         if (response.almanac.priority) {
-            document.getElementById('priority').innerHTML = response.almanac.priority;
+            const e = document.getElementById('priority');
+            if (e) e.innerHTML = response.almanac.priority;
         }
         if (response.almanac.origin) {
-            document.getElementById('origin').innerHTML = '<a href="'+response.almanac.origin+'">'+response.almanac.origin+'</a>';
+            const e = document.getElementById('origin');
+            if (e) e.innerHTML = '<a href="'+response.almanac.origin+'">'+response.almanac.origin+'</a>';
         }
-        if (response.almanac.sunset) {
-            var sunset = new Date (response.almanac.sunset * 1000);
-            document.getElementById(what+'sunset').innerHTML = shortTime(sunset);
-        } else {
-            document.getElementById(what+'sunset').innerHTML = '';
+        const e = document.getElementById('updated');
+        if (e) e.innerHTML = showDateTime(response.almanac.updated);
+
+        const table = document.getElementById ('almanac');
+        if (table) {
+            for (var i = table.childNodes.length - 1; i > 1; i--) {
+                 table.removeChild(table.childNodes[i]);
+            }
         }
-        if (response.almanac.sunrise) {
-            var sunrise = new Date (response.almanac.sunrise * 1000);
-            document.getElementById(what+'sunrise').innerHTML = shortTime(sunrise);
-        } else {
-            document.getElementById(what+'sunrise').innerHTML = '';
+
+        for (var i = 0; i < AlmanacDays.length; ++i) {
+            const day = AlmanacDays[i];
+            const dayset = response.almanac[day];
+            for (var j = 0; j < AlmanacTimes.length; ++j) {
+                const time = AlmanacTimes[j];
+                const e = document.getElementById(day+time);
+                if (e) {
+                    if (dayset) {
+                        e.innerHTML = showDateTime(dayset[time]);
+                    } else {
+                        e.innerHTML = '';
+                    }
+                }
+            }
+            if (dayset && table) {
+                var row = document.createElement("tr");
+                var cell = document.createElement("td");
+                cell.innerHTML = day;
+                row.appendChild(cell);
+                cell = document.createElement("td");
+                cell.innerHTML = showDate(dayset.sunset);
+                row.appendChild(cell);
+                cell = document.createElement("td");
+                cell.innerHTML = showTime(dayset.sunrise);
+                row.appendChild(cell);
+                cell = document.createElement("td");
+                cell.innerHTML = showTime(dayset.sunset);
+                row.appendChild(cell);
+                table.appendChild(row);
+            }
         }
-    } else {
-        document.getElementById(what+'sunset').innerHTML = '';
-        document.getElementById(what+'sunrise').innerHTML = '';
+
+        const dayset = response.almanac.tonight;
+        if (dayset) {
+            for (var j = 0; j < AlmanacTimes.length; ++j) {
+                const time = AlmanacTimes[j];
+                const e = document.getElementById('tonight'+time);
+                if (e) {
+                    e.innerHTML = showDateTime(dayset[time]);
+                }
+            }
+        }
     }
 }
 
-function AlmanacInfo (what) {
+function AlmanacRefresh () {
 
     var command = new XMLHttpRequest();
-    command.open("GET", "/sun/"+what);
+    command.open("GET", "/sun/status");
     command.onreadystatechange = function () {
         if (command.readyState === 4 && command.status === 200) {
-            AlmanacUpdate(what, JSON.parse(command.responseText));
+            AlmanacUpdate(JSON.parse(command.responseText));
         }
     }
     command.send(null);
 }
 
-function AlmanacRefresh () {
-    AlmanacInfo ("today");
-    AlmanacInfo ("tonight");
-}
-
 window.onload = function() {
    AlmanacRefresh();
-   setInterval (AlmanacRefresh, 1000);
+   setInterval (AlmanacRefresh, 5000);
 }
 </script>
 <title></title>
@@ -93,8 +140,8 @@ window.onload = function() {
    <td><span>Status</span></td>
    <td><a href="/sun/events.html">Events</a></td>
    </tr>
-   </table> 
-   </nav> 
+   </table>
+   </nav>
    <main>
    <article>
    <table class="housepanel">
@@ -108,6 +155,8 @@ window.onload = function() {
    <td><span class="housedata" id="longitude"></span></td></tr>
    <tr><td>Local Time:</td>
    <td><span class="housedata" id="localtime"></span></td></tr>
+   <tr><td>Updated:</td>
+   <td><span class="housedata" id="updated"></span></td></tr>
    <tr><td>Time Zone:</td>
    <td><span class="housedata" id="timezone"></span></td></tr>
    <tr><td>Origin:</td>
@@ -140,6 +189,14 @@ window.onload = function() {
    </div>
    </td></tr>
    </table> 
+   <table id="almanac" class="housesidetable">
+      <tr>
+         <th width="20%"></th>
+         <th width="30%">DATE</th>
+         <th width="25%">SUNRISE</th>
+         <th width="25%">SUNSET</th>
+      </tr>
+   </table>
    </article>
    </main>
 </body>
